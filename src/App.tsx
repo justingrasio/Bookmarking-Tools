@@ -67,6 +67,7 @@ import CategoryChip from "./components/CategoryChip";
 import ConfirmationModal from "./components/ConfirmationModal";
 
 const gridOptions: GridColumnCount[] = [2, 3, 4, 5];
+const chevronDownIcon = `${import.meta.env.BASE_URL}figma-assets/chevron-down.svg`;
 
 interface PendingImage extends ClipboardImage {
   previewUrl: string;
@@ -1874,7 +1875,7 @@ function App() {
                     </span>
                     <img
                       className={`chevronDown${isComposerCategoryOpen ? " is-open" : ""}`}
-                      src="/figma-assets/chevron-down.svg"
+                      src={chevronDownIcon}
                       alt=""
                       aria-hidden="true"
                     />
@@ -2096,7 +2097,7 @@ function App() {
                     className={`chevronDown${
                       isDetailActiveCategoryOpen ? " is-open" : ""
                     }`}
-                    src="/figma-assets/chevron-down.svg"
+                    src={chevronDownIcon}
                     alt=""
                     aria-hidden="true"
                   />
@@ -2122,7 +2123,7 @@ function App() {
                   </span>
                   <img
                     className={`chevronDown${isDetailCategoryOpen ? " is-open" : ""}`}
-                    src="/figma-assets/chevron-down.svg"
+                    src={chevronDownIcon}
                     alt=""
                     aria-hidden="true"
                   />
@@ -2380,7 +2381,7 @@ function App() {
             {categories.length > 0 ? (
               <img
                 className={`chevronDown${isDropdownOpen ? " is-open" : ""}`}
-                src="/figma-assets/chevron-down.svg"
+                src={chevronDownIcon}
                 alt=""
                 aria-hidden="true"
                 data-node-id="17006:797"
