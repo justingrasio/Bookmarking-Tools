@@ -118,7 +118,11 @@ export async function updateImage(
 
   const db = await getDB();
   await db.put("images", image);
-  return image;
+
+  // Re-read after put: Safari invalidates blob references from replaced IDB records,
+  // so we must fetch a fresh blob from the newly-written record.
+  const fresh = await db.get("images", id);
+  return fresh ? normalizeImage(fresh, 0) : image;
 }
 
 export async function moveImage(

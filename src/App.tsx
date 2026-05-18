@@ -780,8 +780,12 @@ function App() {
 
     objectUrlImages.forEach((image) => {
       const cachedImage = imageObjectUrlCache.get(image.id);
-      if (cachedImage) {
+      if (cachedImage && cachedImage.blob === image.blob) {
         return;
+      }
+
+      if (cachedImage) {
+        URL.revokeObjectURL(cachedImage.url);
       }
 
       imageObjectUrlRefreshCountsRef.current.delete(image.id);
@@ -1473,25 +1477,19 @@ function App() {
       setImages((current) =>
         sortImagesForDisplay(
           current.map((currentImage) =>
-            currentImage.id === updatedImage.id
-              ? { ...updatedImage, blob: currentImage.blob }
-              : currentImage,
+            currentImage.id === updatedImage.id ? updatedImage : currentImage,
           ),
         ),
       );
       setDetailLinkedImages((current) =>
         current.map((currentImage) =>
-          currentImage.id === updatedImage.id
-            ? { ...updatedImage, blob: currentImage.blob }
-            : currentImage,
+          currentImage.id === updatedImage.id ? updatedImage : currentImage,
         ),
       );
       setDetailSliderImages((current) =>
         sortImagesForDisplay(
           current.map((currentImage) =>
-            currentImage.id === updatedImage.id
-              ? { ...updatedImage, blob: currentImage.blob }
-              : currentImage,
+            currentImage.id === updatedImage.id ? updatedImage : currentImage,
           ),
         ),
       );
@@ -1637,9 +1635,7 @@ function App() {
       setImages((current) =>
         sortImagesForDisplay(
           current.map((currentImage) =>
-            currentImage.id === updatedImage.id
-              ? { ...updatedImage, blob: currentImage.blob }
-              : currentImage,
+            currentImage.id === updatedImage.id ? updatedImage : currentImage,
           ),
         ),
       );
