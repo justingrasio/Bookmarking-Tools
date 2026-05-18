@@ -147,52 +147,6 @@ function getPageScrollY() {
   );
 }
 
-function clampScrollY(scrollY: number) {
-  const maxScrollY = Math.max(
-    0,
-    document.documentElement.scrollHeight - window.innerHeight,
-  );
-  return Math.min(Math.max(scrollY, 0), maxScrollY);
-}
-
-function normalizeWheelDelta(event: WheelEvent) {
-  if (event.deltaMode === WheelEvent.DOM_DELTA_LINE) {
-    return event.deltaY * 16;
-  }
-
-  if (event.deltaMode === WheelEvent.DOM_DELTA_PAGE) {
-    return event.deltaY * window.innerHeight;
-  }
-
-  return event.deltaY;
-}
-
-function shouldUseNativeWheelScroll(event: WheelEvent) {
-  if (event.defaultPrevented || event.ctrlKey || event.metaKey) {
-    return true;
-  }
-
-  const target = event.target instanceof Element ? event.target : null;
-  if (!target) {
-    return false;
-  }
-
-  return Boolean(
-    target.closest(
-      [
-        "input",
-        "textarea",
-        "select",
-        "[contenteditable='true']",
-        ".categoryOptions",
-        ".composerAllCategoryList",
-        ".detailThumbnailStrip",
-        ".floatingControls",
-      ].join(", "),
-    ),
-  );
-}
-
 function restorePageScrollY(scrollY: number) {
   window.scrollTo(0, scrollY);
   document.documentElement.scrollTop = scrollY;
@@ -714,8 +668,6 @@ function App() {
   const lastGridScrollYRef = useRef(0);
   const shouldRestoreDetailScrollRef = useRef(false);
   const saveToastTimeoutRef = useRef<number | null>(null);
-  const smoothScrollFrameRef = useRef<number | null>(null);
-  const smoothScrollTargetYRef = useRef(0);
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
@@ -769,69 +721,6 @@ function App() {
       setError(caught instanceof Error ? caught.message : "Unable to load local data.");
     });
   }, []);
-
-  useEffect(() => {
-    const prefersReducedMotion = window.matchMedia(
-      "(prefers-reduced-motion: reduce)",
-    ).matches;
-    const canUseSmoothScroll =
-      images.length > 0 && !detailImageId && !pendingImage && !prefersReducedMotion;
-
-    if (!canUseSmoothScroll) {
-      if (smoothScrollFrameRef.current !== null) {
-        window.cancelAnimationFrame(smoothScrollFrameRef.current);
-        smoothScrollFrameRef.current = null;
-      }
-      return;
-    }
-
-    smoothScrollTargetYRef.current = getPageScrollY();
-
-    function animateScroll() {
-      const currentScrollY = getPageScrollY();
-      const nextScrollY =
-        currentScrollY + (smoothScrollTargetYRef.current - currentScrollY) * 0.16;
-
-      if (Math.abs(smoothScrollTargetYRef.current - currentScrollY) < 0.5) {
-        restorePageScrollY(smoothScrollTargetYRef.current);
-        smoothScrollFrameRef.current = null;
-        return;
-      }
-
-      restorePageScrollY(nextScrollY);
-      smoothScrollFrameRef.current = window.requestAnimationFrame(animateScroll);
-    }
-
-    function handleHomepageWheel(event: WheelEvent) {
-      if (shouldUseNativeWheelScroll(event)) {
-        return;
-      }
-
-      event.preventDefault();
-      const currentScrollY = getPageScrollY();
-      const startingScrollY =
-        smoothScrollFrameRef.current === null
-          ? currentScrollY
-          : smoothScrollTargetYRef.current;
-      smoothScrollTargetYRef.current = clampScrollY(
-        startingScrollY + normalizeWheelDelta(event),
-      );
-
-      if (smoothScrollFrameRef.current === null) {
-        smoothScrollFrameRef.current = window.requestAnimationFrame(animateScroll);
-      }
-    }
-
-    window.addEventListener("wheel", handleHomepageWheel, { passive: false });
-
-    return () => {
-      window.removeEventListener("wheel", handleHomepageWheel);
-      if (smoothScrollFrameRef.current !== null) {
-        window.cancelAnimationFrame(smoothScrollFrameRef.current);
-        smoothScrollFrameRef.current = null;
-      }
-    };
-  }, [detailImageId, images.length, pendingImage]);
 
   useEffect(() => {
     function handlePaste(event: ClipboardEvent) {
