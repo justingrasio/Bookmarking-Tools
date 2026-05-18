@@ -742,12 +742,8 @@ function App() {
 
     objectUrlImages.forEach((image) => {
       const cachedImage = imageObjectUrlCache.get(image.id);
-      if (cachedImage?.blob === image.blob) {
-        return;
-      }
-
       if (cachedImage) {
-        urlsToRevoke.push(cachedImage.url);
+        return;
       }
 
       imageObjectUrlCache.set(image.id, {
