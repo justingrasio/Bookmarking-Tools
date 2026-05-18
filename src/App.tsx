@@ -100,6 +100,24 @@ function buildMasonryColumns(
   return columns;
 }
 
+function sortImagesForDisplay(imagesToSort: BookmarkImage[]): BookmarkImage[] {
+  return [...imagesToSort].sort((a, b) => {
+    if (a.pinned !== b.pinned) {
+      return a.pinned ? -1 : 1;
+    }
+
+    if (a.pinned && b.pinned && a.pinnedAt !== b.pinnedAt) {
+      return (a.pinnedAt ?? 0) - (b.pinnedAt ?? 0);
+    }
+
+    if (a.sortIndex !== b.sortIndex) {
+      return a.sortIndex - b.sortIndex;
+    }
+
+    return b.createdAt.localeCompare(a.createdAt);
+  });
+}
+
 function getOrderedCategoryIdsFromImages(images: BookmarkImage[]) {
   const categoryIds: string[] = [];
   images.forEach((image) => {
@@ -1453,16 +1471,30 @@ function App() {
     try {
       const updatedImage = await setImagePinned(image.id, !image.pinned);
       setImages((current) =>
+        sortImagesForDisplay(
+          current.map((currentImage) =>
+            currentImage.id === updatedImage.id
+              ? { ...updatedImage, blob: currentImage.blob }
+              : currentImage,
+          ),
+        ),
+      );
+      setDetailLinkedImages((current) =>
         current.map((currentImage) =>
-          currentImage.id === updatedImage.id ? updatedImage : currentImage,
+          currentImage.id === updatedImage.id
+            ? { ...updatedImage, blob: currentImage.blob }
+            : currentImage,
         ),
       );
       setDetailSliderImages((current) =>
-        current.map((currentImage) =>
-          currentImage.id === updatedImage.id ? updatedImage : currentImage,
+        sortImagesForDisplay(
+          current.map((currentImage) =>
+            currentImage.id === updatedImage.id
+              ? { ...updatedImage, blob: currentImage.blob }
+              : currentImage,
+          ),
         ),
       );
-      await refresh(selectedCategory?.id ?? null);
     } catch (caught: unknown) {
       setError(caught instanceof Error ? caught.message : "Unable to update pinned image.");
     }
@@ -1601,8 +1633,16 @@ function App() {
 
     setError(null);
     try {
-      await setImagePinned(image.id, false);
-      await refresh(selectedCategory?.id ?? null);
+      const updatedImage = await setImagePinned(image.id, false);
+      setImages((current) =>
+        sortImagesForDisplay(
+          current.map((currentImage) =>
+            currentImage.id === updatedImage.id
+              ? { ...updatedImage, blob: currentImage.blob }
+              : currentImage,
+          ),
+        ),
+      );
     } catch (caught: unknown) {
       setError(caught instanceof Error ? caught.message : "Unable to unpin image.");
     }
