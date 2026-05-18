@@ -736,9 +736,7 @@ function App() {
       (image, index, allImages) =>
         allImages.findIndex((currentImage) => currentImage.id === image.id) === index,
     );
-    const activeImageIds = new Set(objectUrlImages.map((image) => image.id));
     const imageObjectUrlCache = imageObjectUrlCacheRef.current;
-    const urlsToRevoke: string[] = [];
 
     objectUrlImages.forEach((image) => {
       const cachedImage = imageObjectUrlCache.get(image.id);
@@ -752,13 +750,6 @@ function App() {
       });
     });
 
-    imageObjectUrlCache.forEach((cachedImage, imageId) => {
-      if (!activeImageIds.has(imageId)) {
-        imageObjectUrlCache.delete(imageId);
-        urlsToRevoke.push(cachedImage.url);
-      }
-    });
-
     const nextImageObjectUrls = Object.fromEntries(
       Array.from(imageObjectUrlCache.entries()).map(([imageId, cachedImage]) => [
         imageId,
@@ -766,10 +757,6 @@ function App() {
       ]),
     );
     setImageObjectUrls(nextImageObjectUrls);
-
-    window.setTimeout(() => {
-      urlsToRevoke.forEach((url) => URL.revokeObjectURL(url));
-    }, 1000);
   }, [detailLinkedImages, detailSliderImages, images]);
 
   useEffect(() => {
