@@ -191,6 +191,7 @@ interface SortableImageCardProps {
     image: BookmarkImage,
     event: MouseEvent<HTMLElement>,
   ) => void;
+  onImageError: (image: BookmarkImage) => void;
   onUnpin: (image: BookmarkImage) => void;
 }
 
@@ -198,6 +199,7 @@ function SortableImageCard({
   image,
   imageUrl,
   onContextMenu,
+  onImageError,
   onOpen,
   onUnpin,
 }: SortableImageCardProps) {
@@ -251,6 +253,7 @@ function SortableImageCard({
         src={imageUrl}
         alt=""
         loading="lazy"
+        onError={() => onImageError(image)}
       />
     </article>
   );
@@ -639,6 +642,7 @@ function App() {
   const imageObjectUrlCacheRef = useRef(
     new Map<string, { blob: Blob; url: string }>(),
   );
+  const imageObjectUrlRefreshCountsRef = useRef(new Map<string, number>());
   const detailSelectionImageIdRef = useRef<string | null>(null);
   const detailReturnScrollYRef = useRef<number | null>(null);
   const detailSwipeStartXRef = useRef<number | null>(null);
@@ -674,6 +678,24 @@ function App() {
 
     setBootState(effectiveBootState);
     setImages(nextImages);
+  }
+
+  function refreshImageObjectUrl(image: BookmarkImage) {
+    const refreshCount = imageObjectUrlRefreshCountsRef.current.get(image.id) ?? 0;
+    if (refreshCount >= 3) {
+      return;
+    }
+
+    imageObjectUrlRefreshCountsRef.current.set(image.id, refreshCount + 1);
+    const url = URL.createObjectURL(image.blob);
+    imageObjectUrlCacheRef.current.set(image.id, {
+      blob: image.blob,
+      url,
+    });
+    setImageObjectUrls((currentImageObjectUrls) => ({
+      ...currentImageObjectUrls,
+      [image.id]: url,
+    }));
   }
 
   useEffect(() => {
@@ -744,6 +766,7 @@ function App() {
         return;
       }
 
+      imageObjectUrlRefreshCountsRef.current.delete(image.id);
       imageObjectUrlCache.set(image.id, {
         blob: image.blob,
         url: URL.createObjectURL(image.blob),
@@ -2003,7 +2026,11 @@ function App() {
                       onClick={() => handleSelectDetailThumbnail(sliderImage)}
                     >
                       {thumbnailUrl ? (
-                        <img src={thumbnailUrl} alt="" />
+                        <img
+                          src={thumbnailUrl}
+                          alt=""
+                          onError={() => refreshImageObjectUrl(sliderImage)}
+                        />
                       ) : null}
                     </button>
                   );
@@ -2018,7 +2045,11 @@ function App() {
               onPointerDown={handleDetailPreviewPointerDown}
               onPointerUp={handleDetailPreviewPointerUp}
             >
-              <img src={imageObjectUrls[detailImage.id]} alt="" />
+              <img
+                src={imageObjectUrls[detailImage.id]}
+                alt=""
+                onError={() => refreshImageObjectUrl(detailImage)}
+              />
             </div>
 
             <div className="sourceUrlField detailUrlField" data-node-id="17019:1066">
@@ -2267,6 +2298,7 @@ function App() {
                           imageUrl={imageObjectUrls[image.id]}
                           key={image.id}
                           onContextMenu={handleOpenImageContextMenu}
+                          onImageError={refreshImageObjectUrl}
                           onOpen={handleOpenImageDetail}
                           onUnpin={handleUnpinMasonryImage}
                         />
