@@ -636,6 +636,9 @@ function App() {
   const detailThumbnailScrollerRef = useRef<HTMLDivElement | null>(null);
   const imageContextMenuRef = useRef<HTMLDivElement | null>(null);
   const imageContextSubmenuRef = useRef<HTMLDivElement | null>(null);
+  const imageObjectUrlCacheRef = useRef(
+    new Map<string, { blob: Blob; url: string }>(),
+  );
   const detailSelectionImageIdRef = useRef<string | null>(null);
   const detailReturnScrollYRef = useRef<number | null>(null);
   const detailSwipeStartXRef = useRef<number | null>(null);
@@ -733,15 +736,54 @@ function App() {
       (image, index, allImages) =>
         allImages.findIndex((currentImage) => currentImage.id === image.id) === index,
     );
+    const activeImageIds = new Set(objectUrlImages.map((image) => image.id));
+    const imageObjectUrlCache = imageObjectUrlCacheRef.current;
+    const urlsToRevoke: string[] = [];
+
+    objectUrlImages.forEach((image) => {
+      const cachedImage = imageObjectUrlCache.get(image.id);
+      if (cachedImage?.blob === image.blob) {
+        return;
+      }
+
+      if (cachedImage) {
+        urlsToRevoke.push(cachedImage.url);
+      }
+
+      imageObjectUrlCache.set(image.id, {
+        blob: image.blob,
+        url: URL.createObjectURL(image.blob),
+      });
+    });
+
+    imageObjectUrlCache.forEach((cachedImage, imageId) => {
+      if (!activeImageIds.has(imageId)) {
+        imageObjectUrlCache.delete(imageId);
+        urlsToRevoke.push(cachedImage.url);
+      }
+    });
+
     const nextImageObjectUrls = Object.fromEntries(
-      objectUrlImages.map((image) => [image.id, URL.createObjectURL(image.blob)]),
+      Array.from(imageObjectUrlCache.entries()).map(([imageId, cachedImage]) => [
+        imageId,
+        cachedImage.url,
+      ]),
     );
     setImageObjectUrls(nextImageObjectUrls);
 
-    return () => {
-      Object.values(nextImageObjectUrls).forEach((url) => URL.revokeObjectURL(url));
-    };
+    window.setTimeout(() => {
+      urlsToRevoke.forEach((url) => URL.revokeObjectURL(url));
+    }, 1000);
   }, [detailLinkedImages, detailSliderImages, images]);
+
+  useEffect(() => {
+    return () => {
+      imageObjectUrlCacheRef.current.forEach((cachedImage) => {
+        URL.revokeObjectURL(cachedImage.url);
+      });
+      imageObjectUrlCacheRef.current.clear();
+    };
+  }, []);
 
   useEffect(() => {
     const detailImage =
