@@ -1449,7 +1449,9 @@ function App() {
         categoryImages[0];
 
       if (!nextImage) {
-        setError("This category does not have any images yet.");
+        await selectCategory(categoryId);
+        resetImageDetail();
+        await refresh(categoryId);
         return;
       }
 
