@@ -2002,6 +2002,9 @@ function App() {
   );
   const selectedGridColumnCount = bootState?.gridColumnCount ?? 5;
   const categoryLabel = selectedCategory?.name ?? "Add New Category";
+  const selectedCategoryImageCount = selectedCategory
+    ? categoryImageCounts[selectedCategory.id] ?? 0
+    : 0;
   const isFirstRunEmptyState = categories.length === 0 && !isDropdownOpen && !isAddingCategory;
   const hasSelectedCategoryImages = Boolean(selectedCategory && images.length > 0);
   const pinnedCategoryCount = categories.filter((category) => category.pinned).length;
@@ -2739,7 +2742,13 @@ function App() {
             data-node-id="17006:795"
             data-name="Menu"
           >
-            <span>{categories.length === 0 ? <PlusIcon /> : null}{categoryLabel}</span>
+            <span>
+              {categories.length === 0 ? <PlusIcon /> : null}
+              <span className="categoryPillLabel">{categoryLabel}</span>
+              {categories.length > 0 ? (
+                <span className="categoryPillCount">{selectedCategoryImageCount}</span>
+              ) : null}
+            </span>
             {categories.length > 0 ? (
               <img
                 className={`chevronDown${isDropdownOpen ? " is-open" : ""}`}

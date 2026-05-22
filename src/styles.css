@@ -1238,7 +1238,7 @@ body.is-grid-transitioning .masonry-card:hover {
   width: 100%;
 }
 
-.categoryPill span {
+.categoryPill > span {
   align-items: center;
   display: inline-flex;
   font-size: 16px;
@@ -1250,6 +1250,19 @@ body.is-grid-transitioning .masonry-card:hover {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.categoryPillLabel {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.categoryPillCount {
+  color: #c6c6c8;
+  flex: none;
+  font-size: 14px;
+  line-height: 20px;
 }
 
 .categoryPill.is-empty span {
