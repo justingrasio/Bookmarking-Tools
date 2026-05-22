@@ -68,6 +68,8 @@ import ConfirmationModal from "./components/ConfirmationModal";
 
 const gridOptions: GridColumnCount[] = [2, 3, 4, 5];
 const chevronDownIcon = `${import.meta.env.BASE_URL}figma-assets/chevron-down.svg`;
+const localDataNoticeDismissedKey =
+  "bookmarking-tools.localDataNoticeDismissed";
 
 interface PendingImage extends ClipboardImage {
   previewUrl: string;
@@ -660,6 +662,18 @@ function App() {
     useState<ImageContextMenuState | null>(null);
   const [detailImageToDelete, setDetailImageToDelete] =
     useState<DetailImageDeleteRequest | null>(null);
+  const [isLocalDataNoticeDismissed, setIsLocalDataNoticeDismissed] =
+    useState(() => {
+      if (typeof window === "undefined") {
+        return false;
+      }
+
+      try {
+        return window.localStorage.getItem(localDataNoticeDismissedKey) === "true";
+      } catch {
+        return false;
+      }
+    });
   const categoryMenuRef = useRef<HTMLDivElement | null>(null);
   const composerCategoryMenuRef = useRef<HTMLDivElement | null>(null);
   const composerAllCategoryListRef = useRef<HTMLDivElement | null>(null);
@@ -1092,6 +1106,20 @@ function App() {
     setLastAddedCategoryId(null);
     setIsDropdownOpen(true);
     setIsAddingCategory(true);
+  }
+
+  function handleDismissLocalDataNotice() {
+    setIsLocalDataNoticeDismissed(true);
+
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    try {
+      window.localStorage.setItem(localDataNoticeDismissedKey, "true");
+    } catch {
+      // Ignore storage failures; the notice will still close for this session.
+    }
   }
 
   async function handleSelectCategory(categoryId: string) {
@@ -2488,8 +2516,16 @@ function App() {
             </section>
           )}
 
-          {!isFirstRunEmptyState ? (
+          {!isFirstRunEmptyState && !isLocalDataNoticeDismissed ? (
             <aside className="localDataNotice" aria-label="Local data notice">
+              <button
+                className="localDataNoticeClose"
+                type="button"
+                aria-label="Hide local data notice"
+                onClick={handleDismissLocalDataNotice}
+              >
+                <X size={16} weight="bold" aria-hidden="true" />
+              </button>
               <strong>Friend test version</strong>
               <span>Saved images stay only in this browser. Use the same browser and device to see them again.</span>
             </aside>
