@@ -982,8 +982,13 @@ function App() {
       return;
     }
 
+    const detailActiveCategoryId =
+      bootState?.selectedCategoryId ?? detailImage.categoryId;
     let isCancelled = false;
-    listImages(detailImage.categoryId)
+    (isAllCategoryId(detailActiveCategoryId)
+      ? listImages()
+      : listImages(detailActiveCategoryId)
+    )
       .then((categoryImages) => {
         if (!isCancelled) {
           setDetailSliderImages((current) => {
@@ -1002,7 +1007,13 @@ function App() {
     return () => {
       isCancelled = true;
     };
-  }, [detailImageId, detailLinkedImages, detailSliderImages, images]);
+  }, [
+    bootState?.selectedCategoryId,
+    detailImageId,
+    detailLinkedImages,
+    detailSliderImages,
+    images,
+  ]);
 
   useLayoutEffect(() => {
     if (detailImageId !== null || !shouldRestoreDetailScrollRef.current) {
@@ -1514,19 +1525,21 @@ function App() {
     setIsDetailActiveCategoryOpen(false);
 
     try {
-      const categoryImages = await listImages(categoryId);
+      const categoryImages = isAllCategoryId(categoryId)
+        ? await listImages()
+        : await listImages(categoryId);
       const nextImage =
         categoryImages.find((image) => image.id === detailImageId) ??
         categoryImages[0];
 
       if (!nextImage) {
-        await selectCategory(categoryId);
+        await selectCategory(isAllCategoryId(categoryId) ? null : categoryId);
         resetImageDetail();
         await refresh(categoryId);
         return;
       }
 
-      await selectCategory(categoryId);
+      await selectCategory(isAllCategoryId(categoryId) ? null : categoryId);
       setDetailSliderImages(categoryImages);
       setDetailImageId(nextImage.id);
       setDetailSourceUrl(nextImage.sourceUrl ?? "");
@@ -2039,9 +2052,12 @@ function App() {
     .map((categoryId) => categories.find((category) => category.id === categoryId))
     .filter((category): category is Category => Boolean(category));
   const detailActiveCategory =
-    categories.find((category) => category.id === detailImage?.categoryId) ??
-    detailActiveCategoryOptions[0] ??
-    null;
+    isAllCategoryId(bootState?.selectedCategoryId)
+      ? allCategory
+      : categories.find((category) => category.id === bootState?.selectedCategoryId) ??
+        categories.find((category) => category.id === detailImage?.categoryId) ??
+        detailActiveCategoryOptions[0] ??
+        null;
   const detailDropdownCategories = categories;
   const detailLinkedCategoryCount = effectiveDetailSelectedCategoryIds.length;
   const hasDetailSourceUrl = detailSourceUrl.trim().length > 0;
@@ -2384,6 +2400,27 @@ function App() {
                     })()}
                   >
                     <div className="categoryOptions" role="presentation">
+                      <button
+                        className={
+                          isAllCategoryId(detailActiveCategory?.id)
+                            ? "categoryDropdownItem is-selected"
+                            : "categoryDropdownItem"
+                        }
+                        type="button"
+                        role="option"
+                        aria-selected={isAllCategoryId(detailActiveCategory?.id)}
+                        onClick={() => handleSelectDetailActiveCategory(allCategoryId)}
+                      >
+                        <span className="categoryRowLabel">
+                          <span className="categoryRowName">All</span>
+                          <span className="categoryRowCount">
+                            {categoryImageCounts[allCategoryId] ?? 0}
+                          </span>
+                        </span>
+                        {isAllCategoryId(detailActiveCategory?.id) ? (
+                          <Check aria-hidden="true" size={16} weight="regular" />
+                        ) : null}
+                      </button>
                       {categories.map((category) => (
                         <button
                           key={category.id}
@@ -2397,7 +2434,12 @@ function App() {
                           aria-selected={category.id === detailActiveCategory?.id}
                           onClick={() => handleSelectDetailActiveCategory(category.id)}
                         >
-                          <span className="categoryRowLabel">{category.name}</span>
+                          <span className="categoryRowLabel">
+                            <span className="categoryRowName">{category.name}</span>
+                            <span className="categoryRowCount">
+                              {categoryImageCounts[category.id] ?? 0}
+                            </span>
+                          </span>
                           {category.id === detailActiveCategory?.id ? (
                             <Check aria-hidden="true" size={16} weight="regular" />
                           ) : null}
