@@ -70,6 +70,15 @@ const gridOptions: GridColumnCount[] = [2, 3, 4, 5];
 const chevronDownIcon = `${import.meta.env.BASE_URL}figma-assets/chevron-down.svg`;
 const localDataNoticeDismissedKey =
   "bookmarking-tools.localDataNoticeDismissed";
+const allCategoryId = "__all__";
+const allCategory: Category = {
+  id: allCategoryId,
+  name: "All",
+  pinned: false,
+  sortIndex: Number.NEGATIVE_INFINITY,
+  createdAt: "",
+  updatedAt: "",
+};
 
 interface PendingImage extends ClipboardImage {
   previewUrl: string;
@@ -211,7 +220,12 @@ function isEditableKeyboardTarget(target: EventTarget | null) {
   );
 }
 
+function isAllCategoryId(categoryId: string | null | undefined) {
+  return categoryId === allCategoryId;
+}
+
 interface SortableImageCardProps {
+  isDragDisabled?: boolean;
   image: BookmarkImage;
   imageUrl?: string;
   onOpen: (
@@ -228,6 +242,7 @@ interface SortableImageCardProps {
 }
 
 function SortableImageCard({
+  isDragDisabled = false,
   image,
   imageUrl,
   onContextMenu,
@@ -242,7 +257,7 @@ function SortableImageCard({
     setNodeRef,
     transform,
     transition,
-  } = useSortable({ id: image.id });
+  } = useSortable({ id: image.id, disabled: isDragDisabled });
   const style: CSSProperties = {
     transform: CSS.Transform.toString(transform),
     transition: [
@@ -300,6 +315,27 @@ interface SortableCategoryDropdownItemProps {
   onEdit: (category: Category) => void;
   onPinToggle: (category: Category) => void;
   onSelect: (categoryId: string) => void;
+}
+
+interface AllCategoryDropdownItemProps {
+  isSelected: boolean;
+  onSelect: () => void;
+}
+
+function AllCategoryDropdownItem({
+  isSelected,
+  onSelect,
+}: AllCategoryDropdownItemProps) {
+  return (
+    <button
+      className="categoryDropdownItem categoryDropdownItemSystem"
+      type="button"
+      aria-selected={isSelected}
+      onClick={onSelect}
+    >
+      <span className="categoryRowLabel">All</span>
+    </button>
+  );
 }
 
 function SortableCategoryDropdownItem({
@@ -706,15 +742,25 @@ function App() {
 
   async function refresh(nextSelectedCategoryId?: string | null) {
     const nextBootState = await bootApp();
-    const selectedCategoryId =
-      nextSelectedCategoryId !== undefined
+    const hasCategories = nextBootState.categories.length > 0;
+    const requestedCategoryId = hasCategories
+      ? nextSelectedCategoryId !== undefined
         ? nextSelectedCategoryId
-        : nextBootState.selectedCategoryId;
-    const selectedCategory =
-      nextBootState.categories.find((category) => category.id === selectedCategoryId) ??
-      null;
+        : nextBootState.selectedCategoryId ?? allCategoryId
+      : null;
+    const selectedCategory = hasCategories
+      ? requestedCategoryId && !isAllCategoryId(requestedCategoryId)
+        ? nextBootState.categories.find(
+            (category) => category.id === requestedCategoryId,
+          ) ?? allCategory
+        : allCategory
+      : null;
 
-    const nextImages = selectedCategory ? await listImages(selectedCategory.id) : [];
+    const nextImages = selectedCategory
+      ? isAllCategoryId(selectedCategory.id)
+        ? await listImages()
+        : await listImages(selectedCategory.id)
+      : [];
 
     const effectiveBootState: AppBootState = {
       ...nextBootState,
@@ -1125,7 +1171,7 @@ function App() {
   async function handleSelectCategory(categoryId: string) {
     setError(null);
     try {
-      await selectCategory(categoryId);
+      await selectCategory(isAllCategoryId(categoryId) ? null : categoryId);
       setIsDropdownOpen(false);
       setIsAddingCategory(false);
       setLastAddedCategoryId(null);
@@ -1291,7 +1337,12 @@ function App() {
 
   async function handleMasonryDragEnd(event: DragEndEvent) {
     const { active, over } = event;
-    if (!over || active.id === over.id || !selectedCategory) {
+    if (
+      !over ||
+      active.id === over.id ||
+      !selectedCategory ||
+      isAllCategoryId(selectedCategory.id)
+    ) {
       return;
     }
 
@@ -1744,7 +1795,11 @@ function App() {
       if (detailImageId) {
         handleCloseImageDetail();
       }
-      await refresh(deletedImageCategoryId);
+      await refresh(
+        isAllCategoryId(selectedCategory?.id)
+          ? allCategoryId
+          : deletedImageCategoryId,
+      );
     } catch (caught: unknown) {
       setError(caught instanceof Error ? caught.message : "Unable to delete image.");
     }
@@ -1921,6 +1976,10 @@ function App() {
 
   const categories = bootState?.categories ?? [];
   const selectedCategory = bootState?.selectedCategory ?? null;
+  const isAllCategorySelected = isAllCategoryId(bootState?.selectedCategoryId);
+  const canReorderSelectedImages = Boolean(
+    selectedCategory && !isAllCategoryId(selectedCategory.id),
+  );
   const selectedGridColumnCount = bootState?.gridColumnCount ?? 5;
   const categoryLabel = selectedCategory?.name ?? "Add New Category";
   const isFirstRunEmptyState = categories.length === 0 && !isDropdownOpen && !isAddingCategory;
@@ -2479,6 +2538,7 @@ function App() {
                     <div className="masonry-column" key={columnIndex}>
                       {column.map((image) => (
                         <SortableImageCard
+                          isDragDisabled={!canReorderSelectedImages}
                           image={image}
                           imageUrl={imageObjectUrls[image.id]}
                           key={image.id}
@@ -2549,16 +2609,21 @@ function App() {
               }
             >
               {categories.length > 0 ? (
-                <DndContext
-                  collisionDetection={closestCenter}
-                  onDragEnd={handleCategoryDragEnd}
-                  sensors={sensors}
-                >
-                  <SortableContext
-                    items={categories.map((category) => category.id)}
-                    strategy={verticalListSortingStrategy}
+                <div className="categoryOptions" role="listbox">
+                  <AllCategoryDropdownItem
+                    isSelected={isAllCategorySelected}
+                    onSelect={() => handleSelectCategory(allCategoryId)}
+                  />
+
+                  <DndContext
+                    collisionDetection={closestCenter}
+                    onDragEnd={handleCategoryDragEnd}
+                    sensors={sensors}
                   >
-                    <div className="categoryOptions" role="listbox">
+                    <SortableContext
+                      items={categories.map((category) => category.id)}
+                      strategy={verticalListSortingStrategy}
+                    >
                       {categories.map((cat) => {
                         const canShowPin = cat.pinned || pinnedCategoryCount < 3;
                         if (editingCategoryId === cat.id) {
@@ -2604,9 +2669,9 @@ function App() {
                           />
                         );
                       })}
-                    </div>
-                  </SortableContext>
-                </DndContext>
+                    </SortableContext>
+                  </DndContext>
+                </div>
               ) : null}
 
               {isAddingCategory ? (

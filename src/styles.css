@@ -1054,6 +1054,11 @@ body.is-grid-transitioning .masonry-card:hover {
   width: 100%;
 }
 
+.categoryDropdownItemSystem {
+  cursor: pointer;
+  font-weight: 500;
+}
+
 .categoryDropdownItem.is-dragging {
   background: rgba(85, 85, 88, 0.55);
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.32);
