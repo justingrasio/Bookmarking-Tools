@@ -309,6 +309,7 @@ function SortableImageCard({
 interface SortableCategoryDropdownItemProps {
   canShowPin: boolean;
   category: Category;
+  imageCount: number;
   isHighlighted: boolean;
   isSelected: boolean;
   onDelete: (category: Category) => void;
@@ -318,11 +319,13 @@ interface SortableCategoryDropdownItemProps {
 }
 
 interface AllCategoryDropdownItemProps {
+  imageCount: number;
   isSelected: boolean;
   onSelect: () => void;
 }
 
 function AllCategoryDropdownItem({
+  imageCount,
   isSelected,
   onSelect,
 }: AllCategoryDropdownItemProps) {
@@ -333,7 +336,10 @@ function AllCategoryDropdownItem({
       aria-selected={isSelected}
       onClick={onSelect}
     >
-      <span className="categoryRowLabel">All</span>
+      <span className="categoryRowLabel">
+        <span className="categoryRowName">All</span>
+        <span className="categoryRowCount">{imageCount}</span>
+      </span>
     </button>
   );
 }
@@ -341,6 +347,7 @@ function AllCategoryDropdownItem({
 function SortableCategoryDropdownItem({
   canShowPin,
   category,
+  imageCount,
   isHighlighted,
   isSelected,
   onDelete,
@@ -379,7 +386,10 @@ function SortableCategoryDropdownItem({
       {...attributes}
       {...listeners}
     >
-      <span className="categoryRowLabel">{category.name}</span>
+      <span className="categoryRowLabel">
+        <span className="categoryRowName">{category.name}</span>
+        <span className="categoryRowCount">{imageCount}</span>
+      </span>
       <span className="categoryRowActions">
         <span
           className="removeCategoryButton"
@@ -666,6 +676,7 @@ function PlusIcon() {
 function App() {
   const [bootState, setBootState] = useState<AppBootState | null>(null);
   const [images, setImages] = useState<BookmarkImage[]>([]);
+  const [categoryImageCounts, setCategoryImageCounts] = useState<Record<string, number>>({});
   const [imageObjectUrls, setImageObjectUrls] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -743,6 +754,14 @@ function App() {
   async function refresh(nextSelectedCategoryId?: string | null) {
     const nextBootState = await bootApp();
     const hasCategories = nextBootState.categories.length > 0;
+    const allImages = hasCategories ? await listImages() : [];
+    const nextCategoryImageCounts = allImages.reduce<Record<string, number>>(
+      (counts, image) => ({
+        ...counts,
+        [image.categoryId]: (counts[image.categoryId] ?? 0) + 1,
+      }),
+      { [allCategoryId]: allImages.length },
+    );
     const requestedCategoryId = hasCategories
       ? nextSelectedCategoryId !== undefined
         ? nextSelectedCategoryId
@@ -758,7 +777,7 @@ function App() {
 
     const nextImages = selectedCategory
       ? isAllCategoryId(selectedCategory.id)
-        ? await listImages()
+        ? allImages
         : await listImages(selectedCategory.id)
       : [];
 
@@ -769,6 +788,7 @@ function App() {
     };
 
     setBootState(effectiveBootState);
+    setCategoryImageCounts(nextCategoryImageCounts);
     setImages(nextImages);
   }
 
@@ -2611,6 +2631,7 @@ function App() {
               {categories.length > 0 ? (
                 <div className="categoryOptions" role="listbox">
                   <AllCategoryDropdownItem
+                    imageCount={categoryImageCounts[allCategoryId] ?? 0}
                     isSelected={isAllCategorySelected}
                     onSelect={() => handleSelectCategory(allCategoryId)}
                   />
@@ -2659,6 +2680,7 @@ function App() {
                           <SortableCategoryDropdownItem
                             canShowPin={canShowPin}
                             category={cat}
+                            imageCount={categoryImageCounts[cat.id] ?? 0}
                             isHighlighted={cat.id === lastAddedCategoryId}
                             isSelected={cat.id === bootState?.selectedCategoryId}
                             key={cat.id}
