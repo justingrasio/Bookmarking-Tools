@@ -156,30 +156,32 @@ export async function updateImageOrder(
   orderedImageIds: EntityId[],
 ): Promise<void> {
   const db = await getDB();
-  const tx = db.transaction("images", "readwrite");
-  const store = tx.objectStore("images");
-  const images = await store.index("by-category-id").getAll(categoryId);
+  const images = await db.getAllFromIndex("images", "by-category-id", categoryId);
   const imagesById = new Map(
     images.map((image, index) => [image.id, normalizeImage(image, index)]),
   );
   const timestamp = nowISO();
-
-  await Promise.all(
+  const reorderedImages = await Promise.all(
     orderedImageIds.map(async (imageId, sortIndex) => {
       const image = imagesById.get(imageId);
       if (!image) {
-        return;
+        return null;
       }
 
-      return store.put({
+      return {
         ...image,
         blob: await cloneImageBlob(image.blob, image.mimeType),
         sortIndex,
         updatedAt: timestamp,
-      });
+      };
     }),
   );
 
+  const tx = db.transaction("images", "readwrite");
+  const store = tx.objectStore("images");
+  await Promise.all(
+    reorderedImages.map((image) => (image ? store.put(image) : undefined)),
+  );
   await tx.done;
 }
 
