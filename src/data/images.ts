@@ -48,6 +48,13 @@ function getFirstUnpinnedSortIndex(images: BookmarkImage[]): number {
     );
 }
 
+async function cloneImageBlob(blob: Blob, fallbackMimeType?: string): Promise<Blob> {
+  const arrayBuffer = await blob.arrayBuffer();
+  return new Blob([arrayBuffer], {
+    type: blob.type || fallbackMimeType || "application/octet-stream",
+  });
+}
+
 export async function listImages(categoryId?: EntityId): Promise<BookmarkImage[]> {
   const db = await getDB();
   const images = categoryId
@@ -79,14 +86,15 @@ export async function createImage(
   const existingImages = await listImages(input.categoryId);
   const nextSortIndex =
     input.sortIndex ?? getFirstUnpinnedSortIndex(existingImages) - 1;
+  const blob = await cloneImageBlob(input.blob);
   const image: BookmarkImage = {
     id,
     imageGroupId: input.imageGroupId ?? id,
     categoryId: input.categoryId,
-    blob: input.blob,
+    blob,
     sourceUrl: input.sourceUrl?.trim() || null,
-    mimeType: input.blob.type || "application/octet-stream",
-    size: input.blob.size,
+    mimeType: blob.type || "application/octet-stream",
+    size: blob.size,
     width: input.width ?? null,
     height: input.height ?? null,
     pinned: input.pinned ?? false,
@@ -113,6 +121,7 @@ export async function updateImage(
   const image: BookmarkImage = {
     ...existing,
     ...input,
+    blob: await cloneImageBlob(existing.blob, existing.mimeType),
     updatedAt: nowISO(),
   };
 
@@ -156,14 +165,15 @@ export async function updateImageOrder(
   const timestamp = nowISO();
 
   await Promise.all(
-    orderedImageIds.map((imageId, sortIndex) => {
+    orderedImageIds.map(async (imageId, sortIndex) => {
       const image = imagesById.get(imageId);
       if (!image) {
-        return Promise.resolve();
+        return;
       }
 
       return store.put({
         ...image,
+        blob: await cloneImageBlob(image.blob, image.mimeType),
         sortIndex,
         updatedAt: timestamp,
       });

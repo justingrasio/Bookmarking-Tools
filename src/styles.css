@@ -53,18 +53,57 @@ input {
   width: 100%;
 }
 
-.emptyCategoryScreen h1 {
+.emptyStateCard {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  max-width: 560px;
+  padding: 0 24px;
+  text-align: center;
+}
+
+.emptyStateCard h1 {
   color: #0f0f10;
   font-family:
     "SF Pro Display", "SF Pro Text", -apple-system, BlinkMacSystemFont, "Segoe UI",
     sans-serif;
-  font-size: 40px;
+  font-size: 44px;
   font-weight: 700;
-  letter-spacing: -0.8px;
+  letter-spacing: 0;
   line-height: 52px;
   margin: 0;
-  text-align: center;
-  white-space: nowrap;
+}
+
+.emptyStateCard p {
+  color: #555558;
+  font-family:
+    "SF Pro Text", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 17px;
+  font-weight: 400;
+  letter-spacing: 0;
+  line-height: 26px;
+  margin: 0;
+  max-width: 520px;
+}
+
+.emptyStatePrimaryAction {
+  background: #fff;
+  border: 2px solid #d5d5d7;
+  border-radius: 24px;
+  box-shadow: 0 4px 30px rgba(15, 15, 15, 0.4);
+  color: #0f0f10;
+  font-family:
+    "SF Pro Text", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 16px;
+  font-weight: 400;
+  letter-spacing: 0;
+  line-height: 24px;
+  padding: 12px 20px;
+}
+
+.emptyStatePrimaryAction:hover {
+  background: #fff;
 }
 
 .homepageScreen {
@@ -523,6 +562,50 @@ body.is-grid-transitioning .masonry-card:hover {
   animation: categoryChoiceShake 340ms ease-in-out;
 }
 
+.composerCategorySetup {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.composerCategoryRequirement {
+  color: #0f0f10;
+  font-family:
+    "SF Pro Text", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 24px;
+  margin: 0;
+  padding: 0 20px;
+  text-align: center;
+}
+
+.composerCreateCategoryButton {
+  background: rgba(15, 15, 16, 0.7);
+  border: 2px solid #555558;
+  border-radius: 99px;
+  box-shadow: var(--control-shadow);
+  color: #a4a4a7;
+  font-family:
+    "SF Pro Text", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 24px;
+  padding: 12px 20px;
+}
+
+.composerCategoryCreateForm {
+  border-radius: 99px;
+  -webkit-backdrop-filter: var(--control-backdrop);
+  backdrop-filter: var(--control-backdrop);
+  background: var(--control-background);
+  border: 2px solid var(--control-border);
+  box-shadow: var(--control-shadow);
+  overflow: hidden;
+  width: min(496px, calc(100vw - 64px));
+}
+
 .categoryChip,
 .composerAllCategoryButton {
   align-items: center;
@@ -832,6 +915,45 @@ body.is-grid-transitioning .masonry-card:hover {
 
 .floatingControls {
   display: contents;
+}
+
+.localDataNotice {
+  -webkit-backdrop-filter: blur(30px);
+  backdrop-filter: blur(30px);
+  background: rgba(250, 250, 250, 0.86);
+  border: 1px solid #d5d5d7;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
+  color: #0f0f10;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-width: min(280px, calc(100vw - 40px));
+  padding: 12px 14px;
+  position: fixed;
+  right: 20px;
+  top: 20px;
+  z-index: 12;
+}
+
+.localDataNotice strong,
+.localDataNotice span {
+  font-family:
+    "SF Pro Text", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  letter-spacing: 0;
+}
+
+.localDataNotice strong {
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 18px;
+}
+
+.localDataNotice span {
+  color: #555558;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 18px;
 }
 
 .categoryMenuWrapper {
@@ -1397,14 +1519,30 @@ body.is-grid-transitioning .masonry-card:hover {
     padding: 24px;
   }
 
-  .emptyCategoryScreen h1 {
-    font-size: 28px;
+  .emptyStateCard {
+    gap: 22px;
+    padding: 0;
+  }
+
+  .emptyStateCard h1 {
+    font-size: 32px;
     line-height: 36px;
-    white-space: normal;
+  }
+
+  .emptyStateCard p {
+    font-size: 15px;
+    line-height: 23px;
   }
 
   .floatingControls {
     display: contents;
+  }
+
+  .localDataNotice {
+    left: 24px;
+    max-width: calc(100vw - 48px);
+    right: 24px;
+    top: 24px;
   }
 
   .categoryMenuWrapper {
@@ -1450,6 +1588,10 @@ body.is-grid-transitioning .masonry-card:hover {
   .composerCategories {
     flex-wrap: wrap;
     max-width: calc(100vw - 48px);
+  }
+
+  .composerCategoryCreateForm {
+    width: min(calc(100vw - 48px), 496px);
   }
 
   .composerAllCategoryButton {

@@ -197,6 +197,18 @@ async function copyTextToClipboard(text: string) {
   }
 }
 
+function isEditableKeyboardTarget(target: EventTarget | null) {
+  if (!(target instanceof HTMLElement)) {
+    return false;
+  }
+
+  return (
+    target.isContentEditable ||
+    target.closest("[contenteditable='true']") !== null ||
+    ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName)
+  );
+}
+
 interface SortableImageCardProps {
   image: BookmarkImage;
   imageUrl?: string;
@@ -629,6 +641,8 @@ function App() {
   const [pendingImage, setPendingImage] = useState<PendingImage | null>(null);
   const [composerCategoryIds, setComposerCategoryIds] = useState<string[]>([]);
   const [isComposerCategoryOpen, setIsComposerCategoryOpen] = useState(false);
+  const [isCreatingComposerCategory, setIsCreatingComposerCategory] = useState(false);
+  const [composerCategoryName, setComposerCategoryName] = useState("");
   const [shouldShakeComposerCategories, setShouldShakeComposerCategories] =
     useState(false);
   const [isSavingImage, setIsSavingImage] = useState(false);
@@ -753,6 +767,8 @@ function App() {
           });
           setComposerCategoryIds([]);
           setIsComposerCategoryOpen(false);
+          setIsCreatingComposerCategory(false);
+          setComposerCategoryName("");
         })
         .catch((caught: unknown) => {
           setError(caught instanceof Error ? caught.message : "Unable to read pasted image.");
@@ -1071,6 +1087,13 @@ function App() {
     }
   }
 
+  function handleStartFirstCategory() {
+    setError(null);
+    setLastAddedCategoryId(null);
+    setIsDropdownOpen(true);
+    setIsAddingCategory(true);
+  }
+
   async function handleSelectCategory(categoryId: string) {
     setError(null);
     try {
@@ -1330,14 +1353,14 @@ function App() {
 
   function handleMoveDetailImage(direction: -1 | 1) {
     if (!detailImageId || detailSliderImages.length <= 1) {
-      return;
+      return false;
     }
 
     const currentIndex = detailSliderImages.findIndex(
       (image) => image.id === detailImageId,
     );
     if (currentIndex === -1) {
-      return;
+      return false;
     }
 
     const nextIndex =
@@ -1349,7 +1372,31 @@ function App() {
     setDetailLinkedImages([]);
     setDetailSelectedCategoryIds([]);
     detailSelectionImageIdRef.current = null;
+    return true;
   }
+
+  useEffect(() => {
+    if (!detailImageId || detailSliderImages.length <= 1) {
+      return;
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (
+        isEditableKeyboardTarget(event.target) ||
+        (event.key !== "ArrowDown" && event.key !== "ArrowUp")
+      ) {
+        return;
+      }
+
+      const moved = handleMoveDetailImage(event.key === "ArrowDown" ? 1 : -1);
+      if (moved) {
+        event.preventDefault();
+      }
+    }
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [detailImageId, detailSliderImages]);
 
   function handleSelectDetailThumbnail(image: BookmarkImage) {
     if (image.id === detailImageId) {
@@ -1752,6 +1799,8 @@ function App() {
       return null;
     });
     setIsComposerCategoryOpen(false);
+    setIsCreatingComposerCategory(false);
+    setComposerCategoryName("");
   }
 
   function handleSelectComposerCategory(categoryId: string) {
@@ -1764,6 +1813,31 @@ function App() {
     setComposerCategoryIds((current) =>
       current.filter((selectedCategoryId) => selectedCategoryId !== categoryId),
     );
+  }
+
+  function handleStartComposerCategoryCreation() {
+    setShouldShakeComposerCategories(false);
+    setIsCreatingComposerCategory(true);
+  }
+
+  async function handleCreateComposerCategory(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError(null);
+    if (!/[\p{L}\p{N}]/u.test(composerCategoryName)) {
+      return;
+    }
+
+    try {
+      const category = await createCategory({ name: composerCategoryName.trim() });
+      await selectCategory(category.id);
+      setComposerCategoryIds([category.id]);
+      setComposerCategoryName("");
+      setIsCreatingComposerCategory(false);
+      setLastAddedCategoryId(category.id);
+      await refresh(category.id);
+    } catch (caught: unknown) {
+      setError(caught instanceof Error ? caught.message : "Unable to create category.");
+    }
   }
 
   async function handleComposerSaveClick() {
@@ -1819,10 +1893,11 @@ function App() {
   const selectedCategory = bootState?.selectedCategory ?? null;
   const selectedGridColumnCount = bootState?.gridColumnCount ?? 5;
   const categoryLabel = selectedCategory?.name ?? "Add New Category";
-  const isEmptySelectedCategory = Boolean(selectedCategory && images.length === 0);
+  const isFirstRunEmptyState = categories.length === 0 && !isDropdownOpen && !isAddingCategory;
   const hasSelectedCategoryImages = Boolean(selectedCategory && images.length > 0);
   const pinnedCategoryCount = categories.filter((category) => category.pinned).length;
   const canSaveCategory = /[\p{L}\p{N}]/u.test(newCategoryName);
+  const canSaveComposerCategory = /[\p{L}\p{N}]/u.test(composerCategoryName);
   const masonryColumns = buildMasonryColumns(images, selectedGridColumnCount);
   const visibleComposerCategories = categories.slice(0, 4);
   const visibleComposerCategoryIds = new Set(
@@ -1908,19 +1983,21 @@ function App() {
               <img src={pendingImage.previewUrl} alt="" />
             </div>
 
-            <label className="sourceUrlField" data-node-id="17006:831">
-              <LinkSimple aria-hidden="true" size={20} weight="regular" />
-              <input
-                aria-label="Input source url"
-                placeholder="Input source url"
-                value={pendingImage.sourceUrl}
-                onChange={(event) =>
-                  setPendingImage((current) =>
-                    current ? { ...current, sourceUrl: event.target.value } : current,
-                  )
-                }
-              />
-            </label>
+            {categories.length > 0 ? (
+              <label className="sourceUrlField" data-node-id="17006:831">
+                <LinkSimple aria-hidden="true" size={20} weight="regular" />
+                <input
+                  aria-label="Input source url"
+                  placeholder="Input source url"
+                  value={pendingImage.sourceUrl}
+                  onChange={(event) =>
+                    setPendingImage((current) =>
+                      current ? { ...current, sourceUrl: event.target.value } : current,
+                    )
+                  }
+                />
+              </label>
+            ) : null}
 
             <div
               className={
@@ -2009,6 +2086,48 @@ function App() {
                     </div>,
                     document.body
                   ) : null}
+                </div>
+              ) : null}
+
+              {categories.length === 0 ? (
+                <div className="composerCategorySetup">
+                  <p className="composerCategoryRequirement">
+                    Create a category before saving this image.
+                  </p>
+                  {isCreatingComposerCategory ? (
+                    <form
+                      className="categoryInputRow composerCategoryCreateForm"
+                      onSubmit={handleCreateComposerCategory}
+                    >
+                      <input
+                        aria-label="New category name"
+                        autoFocus
+                        placeholder="Category name"
+                        value={composerCategoryName}
+                        onChange={(event) => setComposerCategoryName(event.target.value)}
+                      />
+                      <button
+                        className={
+                          canSaveComposerCategory
+                            ? "categorySaveBtn is-active"
+                            : "categorySaveBtn"
+                        }
+                        type="submit"
+                        disabled={!canSaveComposerCategory}
+                        aria-disabled={!canSaveComposerCategory}
+                      >
+                        Save
+                      </button>
+                    </form>
+                  ) : (
+                    <button
+                      className="composerCreateCategoryButton"
+                      type="button"
+                      onClick={handleStartComposerCategoryCreation}
+                    >
+                      Create Category
+                    </button>
+                  )}
                 </div>
               ) : null}
             </div>
@@ -2345,12 +2464,36 @@ function App() {
               </SortableContext>
             </DndContext>
           ) : (
-            <h1 data-node-id="17006:799">
-              {isEmptySelectedCategory
-                ? "You need to add some image here bro"
-                : "You need to add some image here bro"}
-            </h1>
+            <section className="emptyStateCard" aria-label="Getting started">
+              {categories.length === 0 ? (
+                <>
+                  <h1 data-node-id="17006:799">Create your first category</h1>
+                  <button
+                    className="emptyStatePrimaryAction"
+                    type="button"
+                    onClick={handleStartFirstCategory}
+                  >
+                    Create Category
+                  </button>
+                </>
+              ) : (
+                <>
+                  <h1 data-node-id="17006:799">Paste your first image</h1>
+                  <p>
+                    Copy an image from the web, then press Cmd+V or Ctrl+V anywhere
+                    here.
+                  </p>
+                </>
+              )}
+            </section>
           )}
+
+          {!isFirstRunEmptyState ? (
+            <aside className="localDataNotice" aria-label="Local data notice">
+              <strong>Friend test version</strong>
+              <span>Saved images stay only in this browser. Use the same browser and device to see them again.</span>
+            </aside>
+          ) : null}
 
           {error ? (
             <p className="screenError" role="alert">
@@ -2358,6 +2501,7 @@ function App() {
             </p>
           ) : null}
 
+          {!isFirstRunEmptyState ? (
           <div className="floatingControls" aria-label="Bookmarking controls">
         <div className="categoryMenuWrapper" ref={categoryMenuRef} data-node-id="17030:762">
           {shouldRenderDropdown && (
@@ -2507,6 +2651,7 @@ function App() {
           ))}
         </div>
       </div>
+          ) : null}
         </>
       )}
       <ConfirmationModal
